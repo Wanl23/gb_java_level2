@@ -3,7 +3,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Vector;
-import lesson6.additionaltask.server.ClientHandler;
 
 public class Server {
 

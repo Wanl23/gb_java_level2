@@ -1,7 +1,5 @@
 package lesson6.additionaltask.server;
 
-import lesson6.additionaltask.server.Server;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
