@@ -51,7 +51,7 @@ public class ClientHandler {
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-                        ClientHandler.this.closeClient();
+                        server.removeClient(ClientHandler.this);
                     }
                 }
             }).start();
@@ -67,9 +67,5 @@ public class ClientHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    public void closeClient(){
-        server.removeClient(this);
     }
 }
