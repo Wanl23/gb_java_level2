@@ -1,0 +1,21 @@
+#textField{
+    -fx-background-color: #656e7c;
+    -fx-text-fill: #fff;
+}
+
+#textArea{
+    -fx-control-inner-background: #445672;
+}
+
+#btn_sendMSg{
+    -fx-background-color: #656e7c;
+}
+
+#btn_sendMSg:hover{
+    -fx-border-color: #fff;
+    -fx-border-radius: 2px;
+}
+
+#vbox{
+    -fx-background-color: #656e7c;
+}
