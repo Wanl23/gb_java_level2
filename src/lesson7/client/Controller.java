@@ -1,18 +1,23 @@
 package lesson7.client;
 
+import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.Initializable;
+import javafx.scene.control.Button;
+import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.net.URL;
-import java.util.ResourceBundle;
 
 public class Controller{
     @FXML
@@ -33,15 +38,23 @@ public class Controller{
     @FXML
     TextField passwordField;
 
+    @FXML
+    ListView<String> clientsList;
+
+    @FXML
+    VBox listControlUsers;
+
+    @FXML
+    Button btn_addToBL;
+
     Socket socket;
-    String nickname;
     DataInputStream in;
     DataOutputStream out;
 
     final String IP_ADRESS = "localhost";
     final int PORT = 8189;
 
-    private boolean isAuthorized;
+    boolean isAuthorized;
 
     public void setAuthorized(boolean isAuthorized){
         this.isAuthorized = isAuthorized;
@@ -50,17 +63,30 @@ public class Controller{
             upperPanel.setManaged(true);
             bottomPanel.setVisible(false);
             bottomPanel.setManaged(false);
+            clientsList.setVisible(false);
+            clientsList.setManaged(false);
+            btn_addToBL.setVisible(false);
+            btn_addToBL.setManaged(false);
+            listControlUsers.setVisible(false);
+            listControlUsers.setManaged(false);
         }
         else {
             upperPanel.setVisible(false);
             upperPanel.setManaged(false);
             bottomPanel.setVisible(true);
             bottomPanel.setManaged(true);
+            clientsList.setVisible(true);
+            clientsList.setManaged(true);
+            btn_addToBL.setVisible(true);
+            btn_addToBL.setManaged(true);
+            listControlUsers.setVisible(true);
+            listControlUsers.setManaged(true);
         }
     }
 
     public void connect() {
         try {
+            Main.isAuthorised = true;
             socket = new Socket(IP_ADRESS, PORT);
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
@@ -73,8 +99,6 @@ public class Controller{
                             String str = in.readUTF();
                             if(str.startsWith("/authOk")){
                                 setAuthorized(true);
-                                String[] nickArr = str.split(" ");
-                                nickname = nickArr[1];
                                 break;
                             }
                             else
@@ -83,8 +107,30 @@ public class Controller{
 
                         while (true){
                             String str = in.readUTF();
-                            if(str.equals("/serverClosed")) break;
-                            textArea.appendText(str + "\n");
+                                if(str.startsWith("/")){
+                                    if(str.equals("/serverClosed")) {
+                                        Stage stage = (Stage) textArea.getScene().getWindow();
+                                        stage.close();
+                                        break;
+                                    }
+                                    if(str.startsWith("/clientlist ")){
+                                        String[] tokens = str.split(" ");
+
+                                        Platform.runLater(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                clientsList.getItems().clear();
+
+                                                for (int i = 1; i < tokens.length; i++) {
+                                                    clientsList.getItems().add(tokens[i]);
+                                                }
+                                            }
+                                        });
+                                    }
+                                }
+                                else {
+                                    textArea.appendText(str + "\n");
+                                }
                         }
                     }
                     catch (IOException e){
@@ -95,7 +141,6 @@ public class Controller{
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-
                         setAuthorized(false);
                     }
                 }
@@ -108,17 +153,7 @@ public class Controller{
 
     public void sendMsg(ActionEvent actionEvent) {
         try {
-            if(textField.getText().startsWith("/w")){
-                String[] msgArr = textField.getText().split(" ");
-                String msg = "";
-                for (int i = 2; i < msgArr.length; i++) {
-                    msg +=msgArr[i] + " ";
-                }
-                out.writeUTF("/w " + msgArr[1] + " " + nickname + ": " + msg);
-            }
-            else{
-                out.writeUTF(nickname + ": " + textField.getText());
-            }
+            out.writeUTF(textField.getText());
             textField.requestFocus();
             textField.clear();
         } catch (IOException e) {
@@ -135,6 +170,36 @@ public class Controller{
             out.writeUTF("/auth " + loginField.getText() + " " + passwordField.getText());
             loginField.clear();
             passwordField.clear();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void openPersonalChat(MouseEvent mouseEvent) throws IOException {
+
+        String nick = clientsList.getSelectionModel().getSelectedItem();
+
+        Platform.runLater(new Runnable() {
+            @Override
+            public void run() {
+                try{
+                    if(mouseEvent.getClickCount() == 2) {
+                        MiniStage ms = new MiniStage(nick, out);
+                        ms.show();
+                    }
+                }
+                catch (IOException e){
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
+    public void addUserToBL(ActionEvent actionEvent) {
+        String nick = clientsList.getSelectionModel().getSelectedItem();
+
+        try {
+            out.writeUTF("/blacklist " + nick);
         } catch (IOException e) {
             e.printStackTrace();
         }

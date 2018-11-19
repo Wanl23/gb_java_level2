@@ -5,9 +5,8 @@ import lesson7.AuthService;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.net.Socket;
-import java.util.Arrays;
+import java.util.ArrayList;
 
 public class ClientHandler {
     Socket socket = null;
@@ -16,6 +15,8 @@ public class ClientHandler {
     DataOutputStream out;
     Server server;
     String nick;
+    ArrayList<String> blacklist;
+    boolean authorised = false;
 
     public ClientHandler(Server server, Socket socket) {
 
@@ -24,6 +25,7 @@ public class ClientHandler {
             this.socket = socket;
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
+            this.blacklist = new ArrayList<>();
 
             new Thread(new Runnable() {
                 @Override
@@ -35,37 +37,44 @@ public class ClientHandler {
                                 String[] tokens = str.split(" ");
                                 String newNick = AuthService.getNickByLoginAndPass(tokens[1], tokens[2]);
                                 if(newNick != null && server.isNicknameFree(newNick)){
-                                    setMsg("/authOk " + newNick);
+                                    authorised = true;
+                                    sendMsg("/authOk " + newNick);
                                     nick = newNick;
                                     server.addClient(ClientHandler.this);
-                                    server.broadcastMsg(newNick + " connected");
                                     break;
                                 }
                                 else if(!server.isNicknameFree(newNick)){
-                                    setMsg("This login is busy");
+                                    sendMsg("This login is busy");
                                 }
                                 else {
-                                    setMsg("Wrong login/password");
+                                    sendMsg("Wrong login/password");
                                 }
                             }
                         }
 
-                        while (true){
+                        while (true) {
                             String str = in.readUTF();
-                            if(str.equals("/end")){
-                                out.writeUTF("/serverClosed");
-                                break;
-                            }
-                            if(str.startsWith("/w")){
-                                String[] tokens = str.split(" ");
-                                String msg = "";
-                                for (int i = 2; i < tokens.length; i++) {
-                                    msg += tokens[i] + " ";
+                            if (str.startsWith("/")){
+                                if (str.equals("/end")) {
+                                    out.writeUTF("/serverClosed");
+                                    break;
                                 }
-                                server.wisper(msg, tokens[1]);
+                                if (str.startsWith("/w ")) {
+                                    String[] tokens = str.split(" ", 3);
+                                    server.whisper(ClientHandler.this, tokens[2], tokens[1]);
+                                }
+                                if(str.startsWith("/blacklist ")){
+                                    String[] tokens = str.split(" ");
+                                    if(server.addUserToBL(tokens[1], ClientHandler.this.nick)){
+                                        sendMsg(tokens[1] + " added to black list");
+                                    }
+                                    else {
+                                        sendMsg("You can't add yourself to the black list");
+                                    }
+                                }
                             }
                             else {
-                                server.broadcastMsg(str);
+                                server.broadcastMsg(ClientHandler.this, str);
                             }
                         }
 
@@ -97,9 +106,13 @@ public class ClientHandler {
 
     }
 
-    public void setMsg(String msg) {
+    public boolean checkBL(String nickFrom){
+        return AuthService.checkBL(nickFrom, this.nick);
+    }
+
+    public void sendMsg(String msg) {
         try {
-            out.writeUTF(msg);
+            this.out.writeUTF(msg);
         } catch (IOException e) {
             e.printStackTrace();
         }
